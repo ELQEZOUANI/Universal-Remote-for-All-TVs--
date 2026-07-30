@@ -277,7 +277,7 @@ class _SplashScreenState extends State<SplashScreen>
                           shaderCallback: (bounds) =>
                               AppTheme.emeraldGradient.createShader(bounds),
                           child: const Text(
-                            'Universal',
+                            'Uni',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 13,
@@ -288,10 +288,10 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Remote for All TVs -',
+                          'TV Remote+',
                           style: TextStyle(
                             color: titleColor,
-                            fontSize: 26,
+                            fontSize: 28,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.5,
                             height: 1.1,

@@ -64,7 +64,7 @@ class UniversalRemoteApp extends StatelessWidget {
 
     return CupertinoApp(
       debugShowCheckedModeBanner: false,
-      title: 'Universal Remote for All TVs -',
+      title: 'Uni TV Remote+',
       theme: CupertinoThemeData(
         brightness: isDark ? Brightness.dark : Brightness.light,
         primaryColor: AppTheme.emerald,

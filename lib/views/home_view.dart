@@ -249,17 +249,17 @@ class _PremiumTopBar extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Universal Remote',
+                  'Uni TV Remote+',
                   style: TextStyle(
                     color: _T.title(isDark),
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.3,
                     height: 1.1,
                   ),
                 ),
                 Text(
-                  'for All TVs -',
+                  'Universal Control',
                   style: TextStyle(
                     color: _T.sub(isDark),
                     fontSize: 11,
@@ -1451,7 +1451,7 @@ class _BrandingHeader extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                'Universal Remote for All TVs -',
+                'Uni TV Remote+',
                 style: TextStyle(
                   color: _T.title(isDark),
                   fontSize: 18,
