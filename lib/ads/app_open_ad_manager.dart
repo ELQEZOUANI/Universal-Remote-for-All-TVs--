@@ -6,8 +6,10 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 class AppOpenAdManager {
   // Platform-aware test Ad Unit IDs for App Open Ad
   static String get _adUnitId {
-    if (Platform.isIOS) {
-      return 'ca-app-pub-2535194044471316/8698617204'; // iOS test App Open
+    if (Platform.isAndroid) {
+      return 'ca-app-pub-3940256099942544/9257395921'; // Android test App Open
+    } else if (Platform.isIOS) {
+      return 'ca-app-pub-2535194044471316/8698617204'; // iOS ad unit ID
     }
     throw UnsupportedError('Unsupported platform');
   }

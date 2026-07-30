@@ -18,8 +18,10 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   // Test Ad Unit IDs (replace with real IDs for production)
   static String get _adUnitId {
-    if (Platform.isIOS) {
-      return 'ca-app-pub-2535194044471316/8303745396'; // iOS test banner
+    if (Platform.isAndroid) {
+      return 'ca-app-pub-3940256099942544/6300978111'; // Android test banner
+    } else if (Platform.isIOS) {
+      return 'ca-app-pub-2535194044471316/8303745396'; // iOS ad unit ID
     }
     throw UnsupportedError('Unsupported platform');
   }

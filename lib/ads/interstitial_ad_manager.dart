@@ -10,8 +10,10 @@ class InterstitialAdManager {
   bool _isLoading = false;
 
   static String get _adUnitId {
-    if (Platform.isIOS) {
-      return 'ca-app-pub-2535194044471316/2643656382'; // iOS test Interstitial
+    if (Platform.isAndroid) {
+      return 'ca-app-pub-3940256099942544/1033173712'; // Android test Interstitial
+    } else if (Platform.isIOS) {
+      return 'ca-app-pub-2535194044471316/2643656382'; // iOS ad unit ID
     }
     throw UnsupportedError('Unsupported platform');
   }

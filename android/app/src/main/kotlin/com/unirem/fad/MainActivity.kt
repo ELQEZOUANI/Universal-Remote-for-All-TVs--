@@ -1,4 +1,4 @@
-package com.uni.rem
+package com.unirem.fad
 
 import io.flutter.embedding.android.FlutterActivity
 
