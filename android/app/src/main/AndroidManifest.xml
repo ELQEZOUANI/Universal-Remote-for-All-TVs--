@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="Universal Remote for All TVs -"
+        android:label="Uni TV Remote+"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
