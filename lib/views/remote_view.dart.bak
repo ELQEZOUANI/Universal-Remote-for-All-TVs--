@@ -1,0 +1,925 @@
+import 'dart:ui';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Colors;
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/tv_provider.dart';
+import '../remote_engine.dart';
+import '../theme/app_theme.dart';
+
+class RemoteView extends StatefulWidget {
+  const RemoteView({super.key});
+
+  @override
+  State<RemoteView> createState() => _RemoteViewState();
+}
+
+class _RemoteViewState extends State<RemoteView> {
+  bool _touchpadMode = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<TVProvider>();
+    final device = provider.activeDevice;
+
+    return CupertinoPageScaffold(
+      child: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.bgGradient),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildTopBar(context, provider, device),
+              // Connection warning
+              if (device != null && !provider.isConnected)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 4,
+                  ),
+                  child: AppTheme.glassCard(
+                    opacity: 0.1,
+                    radius: 12,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    border: AppTheme.redAccent.withOpacity(0.3),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.exclamationmark_triangle_fill,
+                          size: 16,
+                          color: AppTheme.redAccent,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Disconnected – go back to reconnect',
+                          style: TextStyle(
+                            color: AppTheme.redAccent,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              // ── Mode toggle ──
+              _buildModeToggle(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  child: Column(
+                    children: [
+                      _QuickActions(provider: provider),
+                      const SizedBox(height: 28),
+                      _PowerButton(provider: provider),
+                      const SizedBox(height: 28),
+                      // ── D-Pad or Touchpad ──
+                      if (_touchpadMode)
+                        _Touchpad(provider: provider)
+                      else
+                        _NeuDPad(provider: provider),
+                      const SizedBox(height: 28),
+                      _VolumeChannelRow(provider: provider),
+                      const SizedBox(height: 28),
+                      _MediaRow(provider: provider),
+                      const SizedBox(height: 28),
+                      _NumPad(provider: provider),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeToggle() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: AppTheme.glassCard(
+        opacity: 0.06,
+        radius: 14,
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() => _touchpadMode = false);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: !_touchpadMode
+                        ? AppTheme.emerald.withOpacity(0.15)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    border: !_touchpadMode
+                        ? Border.all(color: AppTheme.emerald.withOpacity(0.3))
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        CupertinoIcons.circle_grid_3x3_fill,
+                        size: 16,
+                        color: !_touchpadMode
+                            ? AppTheme.emerald
+                            : AppTheme.grey,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Buttons',
+                        style: TextStyle(
+                          color: !_touchpadMode
+                              ? AppTheme.emerald
+                              : AppTheme.grey,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() => _touchpadMode = true);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _touchpadMode
+                        ? AppTheme.emerald.withOpacity(0.15)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    border: _touchpadMode
+                        ? Border.all(color: AppTheme.emerald.withOpacity(0.3))
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        CupertinoIcons.hand_draw_fill,
+                        size: 16,
+                        color: _touchpadMode ? AppTheme.emerald : AppTheme.grey,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Touchpad',
+                        style: TextStyle(
+                          color: _touchpadMode
+                              ? AppTheme.emerald
+                              : AppTheme.grey,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(
+    BuildContext context,
+    TVProvider provider,
+    TVDevice? device,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
+      child: Row(
+        children: [
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Icon(
+              CupertinoIcons.back,
+              color: AppTheme.grey,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  device?.name ?? 'Remote',
+                  style: const TextStyle(
+                    color: AppTheme.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (device != null)
+                  Text(
+                    '${device.brandLabel} • ${device.ip}',
+                    style: const TextStyle(color: AppTheme.grey, fontSize: 11),
+                  ),
+              ],
+            ),
+          ),
+          // Connection dot
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: provider.isConnected
+                  ? AppTheme.emerald
+                  : AppTheme.redAccent,
+              boxShadow: [
+                BoxShadow(
+                  color:
+                      (provider.isConnected
+                              ? AppTheme.emerald
+                              : AppTheme.redAccent)
+                          .withOpacity(0.6),
+                  blurRadius: 8,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════ QUICK ACTIONS ═══════════════════════
+class _QuickActions extends StatelessWidget {
+  final TVProvider provider;
+  const _QuickActions({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _NeuBtn(
+          icon: CupertinoIcons.arrow_right_arrow_left,
+          label: 'Source',
+          onTap: () => provider.sendKey(RemoteKey.source),
+        ),
+        _NeuBtn(
+          icon: CupertinoIcons.house_fill,
+          label: 'Home',
+          onTap: () => provider.sendKey(RemoteKey.home),
+        ),
+        _NeuBtn(
+          icon: CupertinoIcons.line_horizontal_3,
+          label: 'Menu',
+          onTap: () => provider.sendKey(RemoteKey.menu),
+        ),
+        _NeuBtn(
+          icon: CupertinoIcons.arrow_uturn_left,
+          label: 'Back',
+          onTap: () => provider.sendKey(RemoteKey.back),
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════ POWER BUTTON ═══════════════════════
+class _PowerButton extends StatefulWidget {
+  final TVProvider provider;
+  const _PowerButton({required this.provider});
+
+  @override
+  State<_PowerButton> createState() => _PowerButtonState();
+}
+
+class _PowerButtonState extends State<_PowerButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        HapticFeedback.heavyImpact();
+        widget.provider.sendKey(RemoteKey.power);
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        width: _pressed ? 60 : 68,
+        height: _pressed ? 60 : 68,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: AppTheme.powerGradient,
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.redAccent.withOpacity(_pressed ? 0.3 : 0.5),
+              blurRadius: _pressed ? 10 : 20,
+              spreadRadius: _pressed ? 1 : 4,
+            ),
+          ],
+        ),
+        child: Icon(
+          CupertinoIcons.power,
+          color: AppTheme.white,
+          size: _pressed ? 26 : 30,
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════ NEU D-PAD ══════════════════════════
+class _NeuDPad extends StatelessWidget {
+  final TVProvider provider;
+  const _NeuDPad({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 240,
+      height: 240,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Outer ring
+          Container(
+            width: 240,
+            height: 240,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.charcoal,
+              boxShadow: AppTheme.neuShadow(),
+              border: Border.all(
+                color: AppTheme.emerald.withOpacity(0.08),
+                width: 1,
+              ),
+            ),
+          ),
+          // Directional buttons
+          Positioned(
+            top: 12,
+            child: _DPadArrow(
+              icon: CupertinoIcons.chevron_up,
+              onTap: () => provider.sendKey(RemoteKey.up),
+            ),
+          ),
+          Positioned(
+            bottom: 12,
+            child: _DPadArrow(
+              icon: CupertinoIcons.chevron_down,
+              onTap: () => provider.sendKey(RemoteKey.down),
+            ),
+          ),
+          Positioned(
+            left: 12,
+            child: _DPadArrow(
+              icon: CupertinoIcons.chevron_left,
+              onTap: () => provider.sendKey(RemoteKey.left),
+            ),
+          ),
+          Positioned(
+            right: 12,
+            child: _DPadArrow(
+              icon: CupertinoIcons.chevron_right,
+              onTap: () => provider.sendKey(RemoteKey.right),
+            ),
+          ),
+          // OK center
+          _OkButton(onTap: () => provider.sendKey(RemoteKey.enter)),
+        ],
+      ),
+    );
+  }
+}
+
+class _DPadArrow extends StatefulWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _DPadArrow({required this.icon, required this.onTap});
+
+  @override
+  State<_DPadArrow> createState() => _DPadArrowState();
+}
+
+class _DPadArrowState extends State<_DPadArrow> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        HapticFeedback.mediumImpact();
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 80),
+        width: 56,
+        height: 56,
+        decoration: AppTheme.neuBox(
+          pressed: _pressed,
+          radius: 28,
+          color: AppTheme.charcoal,
+        ),
+        child: Icon(
+          widget.icon,
+          color: _pressed ? AppTheme.emerald : AppTheme.white,
+          size: 24,
+        ),
+      ),
+    );
+  }
+}
+
+class _OkButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _OkButton({required this.onTap});
+
+  @override
+  State<_OkButton> createState() => _OkButtonState();
+}
+
+class _OkButtonState extends State<_OkButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        HapticFeedback.heavyImpact();
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        width: _pressed ? 72 : 80,
+        height: _pressed ? 72 : 80,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppTheme.surface,
+          border: Border.all(
+            color: _pressed
+                ? AppTheme.emerald
+                : AppTheme.emerald.withOpacity(0.3),
+            width: 2,
+          ),
+          boxShadow: [
+            if (_pressed)
+              BoxShadow(
+                color: AppTheme.emerald.withOpacity(0.3),
+                blurRadius: 16,
+                spreadRadius: 2,
+              ),
+            ...AppTheme.neuShadow(pressed: _pressed),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            'OK',
+            style: TextStyle(
+              color: _pressed ? AppTheme.emerald : AppTheme.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+              letterSpacing: 2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════ TOUCHPAD ═══════════════════════════
+class _Touchpad extends StatefulWidget {
+  final TVProvider provider;
+  const _Touchpad({required this.provider});
+
+  @override
+  State<_Touchpad> createState() => _TouchpadState();
+}
+
+class _TouchpadState extends State<_Touchpad> {
+  Offset? _start;
+  bool _swiped = false;
+  static const double _threshold = 30.0;
+
+  void _onPanStart(DragStartDetails d) {
+    _start = d.localPosition;
+    _swiped = false;
+  }
+
+  void _onPanUpdate(DragUpdateDetails d) {
+    if (_start == null || _swiped) return;
+    final dx = d.localPosition.dx - _start!.dx;
+    final dy = d.localPosition.dy - _start!.dy;
+
+    if (dx.abs() > _threshold || dy.abs() > _threshold) {
+      _swiped = true;
+      HapticFeedback.lightImpact();
+      if (dx.abs() > dy.abs()) {
+        widget.provider.sendKey(dx > 0 ? RemoteKey.right : RemoteKey.left);
+      } else {
+        widget.provider.sendKey(dy > 0 ? RemoteKey.down : RemoteKey.up);
+      }
+      // Allow repeated swipes by resetting start
+      _start = d.localPosition;
+      _swiped = false;
+    }
+  }
+
+  void _onTap() {
+    HapticFeedback.mediumImpact();
+    widget.provider.sendKey(RemoteKey.enter);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onPanStart: _onPanStart,
+      onPanUpdate: _onPanUpdate,
+      onTap: _onTap,
+      child: Container(
+        width: double.infinity,
+        height: 260,
+        decoration: BoxDecoration(
+          color: AppTheme.charcoal,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: AppTheme.neuShadow(),
+          border: Border.all(color: AppTheme.emerald.withOpacity(0.1)),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Grid lines for visual feedback
+            ..._buildGridLines(),
+            // Center label
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  CupertinoIcons.hand_draw,
+                  size: 32,
+                  color: AppTheme.emerald.withOpacity(0.2),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Swipe to navigate • Tap to select',
+                  style: TextStyle(
+                    color: AppTheme.grey.withOpacity(0.4),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+            // Direction indicators
+            Positioned(
+              top: 16,
+              child: Icon(
+                CupertinoIcons.chevron_up,
+                size: 16,
+                color: AppTheme.grey.withOpacity(0.2),
+              ),
+            ),
+            Positioned(
+              bottom: 16,
+              child: Icon(
+                CupertinoIcons.chevron_down,
+                size: 16,
+                color: AppTheme.grey.withOpacity(0.2),
+              ),
+            ),
+            Positioned(
+              left: 16,
+              child: Icon(
+                CupertinoIcons.chevron_left,
+                size: 16,
+                color: AppTheme.grey.withOpacity(0.2),
+              ),
+            ),
+            Positioned(
+              right: 16,
+              child: Icon(
+                CupertinoIcons.chevron_right,
+                size: 16,
+                color: AppTheme.grey.withOpacity(0.2),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildGridLines() {
+    return [
+      // Horizontal center line
+      Positioned(
+        left: 40,
+        right: 40,
+        top: 130,
+        child: Container(
+          height: 0.5,
+          color: AppTheme.emerald.withOpacity(0.05),
+        ),
+      ),
+      // Vertical center line
+      Positioned(
+        top: 40,
+        bottom: 40,
+        left: 0,
+        right: 0,
+        child: Center(
+          child: Container(
+            width: 0.5,
+            color: AppTheme.emerald.withOpacity(0.05),
+          ),
+        ),
+      ),
+    ];
+  }
+}
+
+// ═══════════════════ VOLUME / CHANNEL ═══════════════════
+class _VolumeChannelRow extends StatelessWidget {
+  final TVProvider provider;
+  const _VolumeChannelRow({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _NeuRocker(
+          topIcon: CupertinoIcons.volume_up,
+          bottomIcon: CupertinoIcons.volume_down,
+          centerIcon: CupertinoIcons.volume_off,
+          onTop: () => provider.sendKey(RemoteKey.volumeUp),
+          onBottom: () => provider.sendKey(RemoteKey.volumeDown),
+          onCenter: () => provider.sendKey(RemoteKey.mute),
+          label: 'VOL',
+        ),
+        _NeuRocker(
+          topIcon: CupertinoIcons.chevron_up,
+          bottomIcon: CupertinoIcons.chevron_down,
+          onTop: () => provider.sendKey(RemoteKey.channelUp),
+          onBottom: () => provider.sendKey(RemoteKey.channelDown),
+          label: 'CH',
+        ),
+      ],
+    );
+  }
+}
+
+class _NeuRocker extends StatelessWidget {
+  final IconData topIcon, bottomIcon;
+  final IconData? centerIcon;
+  final VoidCallback onTop, onBottom;
+  final VoidCallback? onCenter;
+  final String label;
+
+  const _NeuRocker({
+    required this.topIcon,
+    required this.bottomIcon,
+    required this.onTop,
+    required this.onBottom,
+    required this.label,
+    this.centerIcon,
+    this.onCenter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 80,
+      decoration: AppTheme.neuBox(radius: 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _rockerBtn(topIcon, onTop),
+          if (centerIcon != null && onCenter != null)
+            _rockerBtn(centerIcon!, onCenter!)
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                label,
+                style: const TextStyle(color: AppTheme.grey, fontSize: 11),
+              ),
+            ),
+          _rockerBtn(bottomIcon, onBottom),
+        ],
+      ),
+    );
+  }
+
+  Widget _rockerBtn(IconData icon, VoidCallback onTap) {
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      onPressed: () {
+        HapticFeedback.mediumImpact();
+        onTap();
+      },
+      child: Icon(icon, color: AppTheme.white, size: 22),
+    );
+  }
+}
+
+// ═══════════════════ MEDIA ROW ══════════════════════════
+class _MediaRow extends StatelessWidget {
+  final TVProvider provider;
+  const _MediaRow({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppTheme.glassCard(
+      opacity: 0.06,
+      radius: 20,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _miniBtn(
+            CupertinoIcons.backward_fill,
+            () => provider.sendKey(RemoteKey.rewind),
+          ),
+          _miniBtn(
+            CupertinoIcons.play_fill,
+            () => provider.sendKey(RemoteKey.play),
+          ),
+          _miniBtn(
+            CupertinoIcons.pause_fill,
+            () => provider.sendKey(RemoteKey.pause),
+          ),
+          _miniBtn(
+            CupertinoIcons.stop_fill,
+            () => provider.sendKey(RemoteKey.stop),
+          ),
+          _miniBtn(
+            CupertinoIcons.forward_fill,
+            () => provider.sendKey(RemoteKey.fastForward),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniBtn(IconData icon, VoidCallback onTap) {
+    return CupertinoButton(
+      padding: const EdgeInsets.all(10),
+      onPressed: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Icon(icon, color: AppTheme.emerald, size: 22),
+    );
+  }
+}
+
+// ═══════════════════ NUMBER PAD ═════════════════════════
+class _NumPad extends StatelessWidget {
+  final TVProvider provider;
+  const _NumPad({required this.provider});
+
+  static const _keys = [
+    RemoteKey.num1,
+    RemoteKey.num2,
+    RemoteKey.num3,
+    RemoteKey.num4,
+    RemoteKey.num5,
+    RemoteKey.num6,
+    RemoteKey.num7,
+    RemoteKey.num8,
+    RemoteKey.num9,
+    RemoteKey.num0,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      alignment: WrapAlignment.center,
+      children: _keys.map((k) {
+        final label = k.name.replaceFirst('num', '');
+        return _NumKey(label: label, onTap: () => provider.sendKey(k));
+      }).toList(),
+    );
+  }
+}
+
+class _NumKey extends StatefulWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _NumKey({required this.label, required this.onTap});
+
+  @override
+  State<_NumKey> createState() => _NumKeyState();
+}
+
+class _NumKeyState extends State<_NumKey> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        HapticFeedback.mediumImpact();
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 80),
+        width: 64,
+        height: 52,
+        decoration: AppTheme.neuBox(pressed: _pressed, radius: 14),
+        child: Center(
+          child: Text(
+            widget.label,
+            style: TextStyle(
+              fontSize: 20,
+              color: _pressed ? AppTheme.emerald : AppTheme.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════ REUSABLE NEU BTN ═══════════════════
+class _NeuBtn extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _NeuBtn({required this.icon, required this.label, required this.onTap});
+
+  @override
+  State<_NeuBtn> createState() => _NeuBtnState();
+}
+
+class _NeuBtnState extends State<_NeuBtn> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapUp: (_) {
+            setState(() => _pressed = false);
+            HapticFeedback.mediumImpact();
+            widget.onTap();
+          },
+          onTapCancel: () => setState(() => _pressed = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 80),
+            width: 52,
+            height: 52,
+            decoration: AppTheme.neuBox(pressed: _pressed, radius: 16),
+            child: Icon(
+              widget.icon,
+              color: _pressed ? AppTheme.emerald : AppTheme.white,
+              size: 20,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          widget.label,
+          style: const TextStyle(color: AppTheme.grey, fontSize: 10),
+        ),
+      ],
+    );
+  }
+}
