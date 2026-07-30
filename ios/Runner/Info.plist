@@ -54,9 +54,11 @@
 		<string>_adb._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Universal Remote needs local network access to discover and control your Samsung, LG, Xiaomi, and Android smart TVs over Wi-Fi.</string>
+	<string>Uni TV Remote+ needs local network access to discover and control your Samsung, LG, Xiaomi, and Android smart TVs over Wi-Fi.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Location access is needed to identify your Wi-Fi network and verify your TV is on the same network.</string>
+	<string>Uni TV Remote+ needs location access to identify your Wi-Fi network and verify your TV is on the same network.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Uni TV Remote+ needs location access to identify your Wi-Fi network and verify your TV is on the same network.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
